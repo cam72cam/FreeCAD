@@ -29,6 +29,7 @@ import Path.Base.SetupSheet as PathSetupSheet
 import Path.Base.Util as PathUtil
 import Path.Main.Stock as PathStock
 import Path.Tool.Controller as PathToolController
+from PathScripts.PathUtils import getPathWithPlacement
 import json
 import time
 
@@ -215,8 +216,17 @@ class ObjectJob:
                 "App::Property", "The Work Coordinate Systems for the Job"
             ),
         )
+        obj.addProperty(
+            "App::PropertyBool",
+            "Active",
+            "Path",
+            QT_TRANSLATE_NOOP(
+                "App::Property", "Make False, to prevent operation from generating code"
+            ),
+        )
 
         obj.Fixtures = ["G54"]
+        obj.Active = True
 
         for n in self.propertyEnumerations():
             setattr(obj, n[0], n[1])
@@ -490,8 +500,16 @@ class ObjectJob:
         obj.setEditorMode("Operations", 2)  # hide
         obj.setEditorMode("Placement", 2)
 
-        if hasattr(obj, "Path"):
-            obj.Path = Path.Path()
+        if not hasattr(obj, "Active"):
+            obj.addProperty(
+                "App::PropertyBool",
+                "Active",
+                "Path",
+                QT_TRANSLATE_NOOP(
+                    "App::Property", "Make False, to prevent operation from generating code"
+                ),
+            )
+            obj.Active = True
 
         if not hasattr(obj, "CycleTime"):
             obj.addProperty(
@@ -543,6 +561,8 @@ class ObjectJob:
                 QT_TRANSLATE_NOOP("App::Property", "Select the Type of Job"),
             )
             obj.setEditorMode("JobType", 2)  # Hide
+
+        obj.recompute()
 
         for n in self.propertyEnumerations():
             setattr(obj, n[0], n[1])
@@ -671,6 +691,16 @@ class ObjectJob:
             self.getCycleTime()
             if hasattr(obj, "PathChanged"):
                 obj.PathChanged = True
+
+            if not obj.Active:
+                obj.Path = Path.Path()
+                return
+
+            commands = []
+            for op in obj.Operations.OutList:
+                if op.Active:
+                    commands += getPathWithPlacement(op).Commands
+            obj.Path = Path.Path(commands)
 
     def getCycleTime(self):
         seconds = 0
