@@ -150,13 +150,15 @@ class PathSimulation:
     def SetupSimulation(self):
         form = self.taskForm.form
         self.activeOps = []
+        self.activePaths = []
         self.numCommands = 0
         self.ioperation = 0
         for i in range(form.listOperations.count()):
             if form.listOperations.item(i).checkState() == QtCore.Qt.CheckState.Checked:
                 self.firstDrill = True
                 self.activeOps.append(self.operations[i])
-                self.numCommands += len(self.operations[i].Path.Commands)
+                self.activePaths.append(self.paths[i])
+                self.numCommands += len(self.paths[i].Commands)
 
         self.stock = self.job.Stock.Shape
         if self.isVoxel:
@@ -203,7 +205,7 @@ class PathSimulation:
         self.icmd = 0
         self.curpos = FreeCAD.Placement(self.initialPos, self.stdrot)
         self.cutTool.Placement = self.curpos
-        self.opCommands = PathUtils.getPathWithPlacement(self.operation).Commands
+        self.opCommands = self.activePaths[itool].Commands
 
     def SimulateMill(self):
         self.job = self.jobs[self.taskForm.form.comboJobs.currentIndex()]
@@ -508,15 +510,33 @@ class PathSimulation:
         self.job = j
         form.listOperations.clear()
         self.operations = []
+        self.paths = []
+        self.includeJob(j, form)
+        if self.initdone:
+            self.SetupSimulation()
+    def includeJob(self, j, form, placement = None):
         for op in j.Operations.OutList:
-            if PathUtil.opProperty(op, "Active"):
+            subPl = op.Placement
+            if op.isDerivedFrom("App::Link"):
+                op = op.LinkedObject
+
+            if not PathUtil.opProperty(op, "Active"):
+                continue
+
+            if isinstance(PathUtil.opProperty(op, "Proxy"), Path.Main.Job.ObjectJob):
+                self.includeJob(op, form, subPl)
+            elif PathUtil.opProperty(op, "Active"):
                 listItem = QtGui.QListWidgetItem(op.ViewObject.Icon, op.Label)
                 listItem.setFlags(listItem.flags() | QtCore.Qt.ItemIsUserCheckable)
                 listItem.setCheckState(QtCore.Qt.CheckState.Checked)
                 self.operations.append(op)
+                path = op.Path
+                path = PathUtils.applyPlacementToPath(op.Placement, path)
+                if placement is not None:
+                    path = PathUtils.applyPlacementToPath(placement, path)
+                self.paths.append(path)
                 form.listOperations.addItem(listItem)
-        if self.initdone:
-            self.SetupSimulation()
+
 
     def onSpeedBarChange(self):
         form = self.taskForm.form
