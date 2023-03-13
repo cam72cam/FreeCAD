@@ -56,6 +56,23 @@ class _TempObject:
     InList = []
     Label = "Fixture"
 
+class PostOperation:
+    def __init__(self, op, tool, path):
+        self.op = op
+        self.tool = tool
+
+        self.Path = path
+        self.Label = op.Label
+        self.CoolantMode = None
+        if (
+            hasattr(op, "CoolantMode")
+            or hasattr(op, "Base")
+            and hasattr(op.Base, "CoolantMode")
+        ):
+            if hasattr(op, "CoolantMode"):
+                self.CoolantMode = op.CoolantMode
+            else:
+                self.CoolantMode = op.Base.CoolantMode
 
 def processFileNameSubstitutions(
     job,
@@ -252,6 +269,41 @@ def resolveFileName(job, subpartname, sequencenumber):
 
     return fullPath
 
+def opsForJob(job, placement = None):
+    ops = []
+
+    if not placement:
+        placement = FreeCAD.Placement()
+
+    for obj in job.Operations.Group:
+        objplace = placement
+
+        if obj.isDerivedFrom("App::Link"):
+            # Dereference and store link's placement
+            objplace = objplace.multiply(obj.Placement)
+            obj = obj.LinkedObject
+
+        if hasattr(obj, "Placement"):
+            objplace = objplace.multiply(obj.Placement)
+
+        if hasattr(obj, "Proxy") and isinstance(obj.Proxy, PathJob.ObjectJob):
+            # It's a job
+            ops = ops + opsForJob(obj, objplace)
+        else:
+            if not PathUtil.opProperty(obj, "Active"):
+                continue
+
+            # TODO compounds / groups
+
+            if not hasattr(obj, "Path"):
+                continue
+
+            path = PathUtils.applyPlacementToPath(objplace, obj.Path)
+            tool = PathUtil.toolControllerForOp(obj)
+
+            ops.append(PostOperation(obj, tool, path))
+    return ops
+
 
 def buildPostList(job):
     """Takes the job and determines the specific objects and order to
@@ -259,6 +311,8 @@ def buildPostList(job):
     exportObjectsWith() for final posting."""
     wcslist = job.Fixtures
     orderby = job.OrderOutputBy
+
+    operations = opsForJob(job, None)
 
     postlist = []
 
@@ -283,14 +337,14 @@ def buildPostList(job):
                 )
                 fobj.Path.addCommands(c2)
             fobj.InList.append(job)
-            sublist = [fobj]
+            sublist = [PostOperation(fobj, None, fobj.Path)]
 
             # Now generate the gcode
-            for obj in job.Operations.Group:
-                tc = PathUtil.toolControllerForOp(obj)
-                if tc is not None and PathUtil.opProperty(obj, "Active"):
+            for obj in operations:
+                tc = obj.tool
+                if tc:
                     if tc.ToolNumber != currTool:
-                        sublist.append(tc)
+                        sublist.append(PostOperation(tc, None, tc.Path))
                         Path.Log.debug("Appending TC: {}".format(tc.Name))
                         currTool = tc.ToolNumber
                 sublist.append(obj)

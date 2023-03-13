@@ -319,17 +319,6 @@ def export(objectslist, filename, argstring):
         # print("\n" + "*"*70)
         # dump(obj)
         # print("*"*70 + "\n")
-        if not hasattr(obj, "Path"):
-            print(
-                "The object "
-                + obj.Name
-                + " is not a path. Please select only path and Compounds."
-            )
-            return
-
-        # Skip inactive operations
-        if PathUtil.opProperty(obj, "Active") is False:
-            continue
 
         # do the pre_op
         if OUTPUT_BCNC:
@@ -343,15 +332,8 @@ def export(objectslist, filename, argstring):
 
         # get coolant mode
         coolantMode = "None"
-        if (
-            hasattr(obj, "CoolantMode")
-            or hasattr(obj, "Base")
-            and hasattr(obj.Base, "CoolantMode")
-        ):
-            if hasattr(obj, "CoolantMode"):
-                coolantMode = obj.CoolantMode
-            else:
-                coolantMode = obj.Base.CoolantMode
+        if obj.CoolantMode:
+            coolantMode = obj.CoolantMode
 
         # turn coolant on if required
         if OUTPUT_COMMENTS:
@@ -474,15 +456,10 @@ def parse(pathobj):
         return out
 
     else:  # parsing simple path
-        if not hasattr(
-            pathobj, "Path"
-        ):  # groups might contain non-path things like stock.
-            return out
-
         if OUTPUT_COMMENTS:
             out += linenumber() + "(Path: " + pathobj.Label + ")\n"
 
-        for c in PathUtils.getPathWithPlacement(pathobj).Commands:
+        for c in pathobj.Path.Commands:
             outstring = []
             command = c.Name
 
