@@ -126,6 +126,7 @@ SET(PathPythonPost_SRCS
 
 SET(PathPythonPostScripts_SRCS
     Path/Post/scripts/__init__.py
+    Path/Post/scripts/base.py
     Path/Post/scripts/centroid_post.py
     Path/Post/scripts/comparams_post.py
     Path/Post/scripts/dxf_post.py
