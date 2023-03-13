@@ -319,7 +319,7 @@ def export(objectslist, filename, argstring):
         # print("\n" + "*"*70)
         # dump(obj)
         # print("*"*70 + "\n")
-        if not hasattr(obj, "Path"):
+        if not PathUtil.opProperty(obj, "Path"):
             print(
                 "The object "
                 + obj.Name
@@ -466,7 +466,7 @@ def parse(pathobj):
         "P",
     ]
 
-    if hasattr(pathobj, "Group"):  # We have a compound or project.
+    if hasattr(pathobj, "Group") and not PathUtil.isLink(pathobj): # We have a compound or project.
         if OUTPUT_COMMENTS:
             out += linenumber() + "(Compound: " + pathobj.Label + ")\n"
         for p in pathobj.Group:
@@ -474,11 +474,6 @@ def parse(pathobj):
         return out
 
     else:  # parsing simple path
-        if not hasattr(
-            pathobj, "Path"
-        ):  # groups might contain non-path things like stock.
-            return out
-
         if OUTPUT_COMMENTS:
             out += linenumber() + "(Path: " + pathobj.Label + ")\n"
 

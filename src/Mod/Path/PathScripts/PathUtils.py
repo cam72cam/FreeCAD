@@ -845,10 +845,27 @@ def getPathWithPlacement(pathobj):
     to the obj's path
     """
 
-    if not hasattr(pathobj, "Placement") or pathobj.Path is None:
-        return pathobj.Path
+    placement = None
+    path = None
 
-    return applyPlacementToPath(pathobj.Placement, pathobj.Path)
+    if pathobj.isDerivedFrom("App::Link"):
+        # Dereference and store link's placement
+        placement = pathobj.Placement
+        pathobj = pathobj.LinkedObject
+
+    if hasattr(pathobj, "Placement"):
+        if placement:
+            # Merge the placement with the linked placement
+            placement = placement.multiply(pathobj.Placement)
+        else:
+            placement = pathobj.Placement
+
+    if hasattr(pathobj, "Path"):
+        path = pathobj.Path
+
+    if path and placement:
+        path = applyPlacementToPath(placement, path)
+    return path
 
 def applyPlacementToPath(placement, path):
     """

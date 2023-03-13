@@ -123,9 +123,13 @@ def isSolid(obj):
     shape = Part.getShape(obj)
     return not shape.isNull() and shape.Volume and shape.isClosed()
 
+def isLink(obj):
+    return hasattr(obj, "isDerivedFrom") and obj.isDerivedFrom("App::Link")
 
 def opProperty(op, prop):
     """opProperty(op, prop) ... return the value of property prop of the underlying operation (or None if prop does not exist)"""
+    if isLink(op):
+        return opProperty(op.LinkedObject, prop)
     if hasattr(op, prop):
         return getattr(op, prop)
     if hasattr(op, "Base"):

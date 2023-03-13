@@ -56,6 +56,9 @@ class _TempObject:
     InList = []
     Label = "Fixture"
 
+    def isDerivedFrom(self, something):
+        return False
+
 
 def processFileNameSubstitutions(
     job,
@@ -521,6 +524,7 @@ class CommandPathPost:
         if postname and filename:
             print("post: %s(%s, %s)" % (postname, filename, postArgs))
             processor = PostProcessor.load(postname)
+            print(objs)
             gcode = processor.export(objs, filename, postArgs)
             return (False, gcode, filename)
         else:
